@@ -16,14 +16,16 @@ React (Vite, nginx)  ->  FastAPI  ->  LiteLLM key pool  ->  provider
 
 | Tier | URL |
 | --- | --- |
-| Frontend | `https://<your-frontend>.vercel.app` |
-| Backend | `https://<your-backend>.onrender.com` |
-| Health | `https://<your-backend>.onrender.com/health` |
-| Swagger UI | `https://<your-backend>.onrender.com/docs` |
+| Frontend | `https://litellm-chat-gateway.vercel.app` |
+| Backend | `https://litellm-chat-gateway.onrender.com` |
+| Health | `https://litellm-chat-gateway.onrender.com/health` |
+| Swagger UI | https://litellm-chat-gateway.onrender.com/docs |
 
-> Replace the placeholders after deploying. `DEPLOY.md` has the step-by-step guide
-> for Render (backend) and Vercel (frontend), including the environment variables
-> each tier needs.
+>Both tiers are public and need no login. The backend runs on Render's free plan, so it
+sleeps after 15 minutes idle - the first request can take up to a minute while the
+instance wakes up, and every request after that is fast.
+
+`DEPLOY.md` has the step-by-step guide for redeploying either tier.
 
 ---
 
@@ -63,7 +65,7 @@ python3 -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\ac
 pip install -r requirements-dev.txt
 
 export LLM_API_KEYS="key-one,key-two"
-export LLM_MODELS="gemini/gemini-2.0-flash"
+export LLM_MODELS="groq/openai/gpt-oss-20b"
 export DATABASE_URL="sqlite:///./app.db"
 export ALLOWED_ORIGINS="http://localhost:5173,http://localhost:3000"
 export ENABLE_FAILURE_SIMULATION=true
@@ -108,8 +110,10 @@ npm run dev                    # http://localhost:3000
 
 * LiteLLM's own cache (`litellm.Cache`) is used, `disk` by default (it lives on the
   same volume as the database, so hits survive restarts) and `memory` when
-  `CACHE_TYPE=memory`. If the disk backend cannot start, the app degrades to
-  in-memory instead of failing.
+    `CACHE_TYPE=memory`. Newer LiteLLM builds dropped the built-in `disk` type, so
+  `CACHE_TYPE=disk` falls back to a `diskcache` backend behind the same interface, and
+  then to in-memory - the app degrades, it never fails to start. `/health` reports which
+  backend is live (`cache_backend`).
 * The cache key is a SHA-256 of **model + the full message list sent to the LLM**
   (system prompt + history + new message). Two different messages can therefore never
   collide, and the same first message in a brand-new session hits the cache the second
