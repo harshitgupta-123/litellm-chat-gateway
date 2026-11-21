@@ -1,0 +1,35 @@
+# Optional alternative to Render: Fly.io gives the backend a real volume, so the
+# SQLite file behaves exactly like it does under docker compose.
+#   fly launch --no-deploy --dockerfile backend/Dockerfile
+#   fly volumes create app_data --size 1
+#   fly secrets set LLM_API_KEYS="key-one,key-two" ALLOWED_ORIGINS="https://<frontend>"
+#   fly deploy
+app = "litellm-chat-backend"
+primary_region = "sin"
+
+[build]
+  dockerfile = "backend/Dockerfile"
+
+[env]
+  DATABASE_URL = "sqlite:////data/app.db"
+  CACHE_TYPE = "disk"
+  CACHE_DIR = "/data/cache"
+  ENABLE_FAILURE_SIMULATION = "true"
+  LLM_MODELS = "gemini/gemini-2.0-flash"
+
+[[mounts]]
+  source = "app_data"
+  destination = "/data"
+
+[http_service]
+  internal_port = 8000
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+
+[[http_service.checks]]
+  method = "GET"
+  path = "/health"
+  interval = "30s"
+  timeout = "5s"
